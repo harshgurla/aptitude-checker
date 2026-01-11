@@ -17,6 +17,7 @@ import authRoutes from './routes/authRoutes.js';
 import testRoutes from './routes/testRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import seedRoutes from './routes/seedRoutes.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -73,6 +74,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/test', testRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/seed', seedRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date() });
