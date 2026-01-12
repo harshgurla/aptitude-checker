@@ -243,22 +243,76 @@ export const getDetailedAnalytics = async (req, res) => {
   }
 };
 
-// Generate today's questions manually
+// Generate today's questions manually (once per 24 hours)
 export const generateQuestionsManually = async (req, res) => {
   try {
-    await generateTodayQuestions();
-    
+    // Check if questions were already generated today
     const todayTopic = await getTodayTopic();
-    const questionsCount = await Question.countDocuments({ topic: todayTopic._id });
+    
+    if (!todayTopic) {
+      return res.status(400).json({ 
+        error: 'No active topic found. Please activate a topic first.',
+        questionsGenerated: 0
+      });
+    }
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    const existingQuestionsCount = await Question.countDocuments({
+      topic: todayTopic._id,
+      createdAt: {
+        $gte: today,
+        $lt: tomorrow,
+      },
+    });
+    
+    // Enforce 24-hour cooldown: only allow generation once per day
+    if (existingQuestionsCount > 0) {
+      const nextMidnight = new Date(tomorrow);
+      return res.status(400).json({ 
+        error: 'Questions already generated for today',
+        message: `Questions for "${todayTopic.name}" have already been generated today. You can generate new questions after midnight.`,
+        questionsGenerated: existingQuestionsCount,
+        nextGenerationTime: nextMidnight,
+        canGenerateToday: false
+      });
+    }
+    
+    // Generate questions
+    const result = await generateTodayQuestions();
+    
+    if (!result.success) {
+      return res.status(400).json({ 
+        message: result.message,
+        questionsGenerated: 0,
+        error: result.message || 'Failed to generate questions'
+      });
+    }
+    
+    const questionsCount = await Question.countDocuments({ 
+      topic: todayTopic._id,
+      createdAt: {
+        $gte: today,
+        $lt: tomorrow,
+      },
+    });
     
     res.json({
-      message: 'Questions generated successfully',
+      message: result.message || 'Questions generated successfully',
       topic: todayTopic.name,
       questionsGenerated: questionsCount,
+      canGenerateToday: false,
+      nextGenerationTime: tomorrow
     });
   } catch (error) {
     console.error('Error generating questions:', error);
-    res.status(500).json({ error: 'Failed to generate questions' });
+    res.status(500).json({ 
+      error: 'Failed to generate questions',
+      details: error.message 
+    });
   }
 };
 
@@ -300,9 +354,20 @@ export const getTodayTopicInfo = async (req, res) => {
       },
     });
     
+    // Check if questions were already generated today (24-hour cooldown)
+    const canGenerateToday = questionsCount === 0;
+    
+    // Calculate time until midnight (next generation time)
+    const now = new Date();
+    const nextMidnight = new Date(tomorrow);
+    const timeUntilNextGeneration = nextMidnight - now;
+    
     res.json({
       topic: todayTopic,
       questionsForToday: questionsCount,
+      canGenerateToday,
+      timeUntilNextGeneration,
+      nextGenerationTime: nextMidnight,
     });
   } catch (error) {
     console.error('Error fetching today topic info:', error);

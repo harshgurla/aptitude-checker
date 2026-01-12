@@ -1,74 +1,78 @@
-import React, { useState, useEffect } from 'react';
-import { adminService } from '../services/api';
+import React, { useState } from 'react';
+import { 
+  useAdminDashboard, 
+  useStudents, 
+  useTodayTopic,
+  useGenerateQuestions,
+  useRotateTopic 
+} from '../hooks/useAdminQueries';
 
 export const AdminDashboard = () => {
-  const [dashboard, setDashboard] = useState(null);
-  const [students, setStudents] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
-  const [topicInfo, setTopicInfo] = useState(null);
-  const [generating, setGenerating] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
 
-  useEffect(() => {
-    fetchAdminData();
-    fetchTopicInfo();
-  }, []);
+  // React Query hooks
+  const { data: dashboard, isLoading: dashboardLoading } = useAdminDashboard();
+  const { data: studentsData, isLoading: studentsLoading } = useStudents(0, 20);
+  const { data: topicInfo, isLoading: topicLoading } = useTodayTopic();
+  const generateQuestionsMutation = useGenerateQuestions();
+  const rotateTopicMutation = useRotateTopic();
 
-  const fetchAdminData = async () => {
-    try {
-      const [dashRes, studentsRes] = await Promise.all([
-        adminService.getDashboard(),
-        adminService.getAllStudents(0, 20),
-      ]);
+  const loading = dashboardLoading || studentsLoading || topicLoading;
+  const students = studentsData?.students || [];
 
-      setDashboard(dashRes.data);
-      setStudents(studentsRes.data.students);
-    } catch (error) {
-      console.error('Error fetching admin data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchTopicInfo = async () => {
-    try {
-      const res = await adminService.getTodayTopicInfo();
-      setTopicInfo(res.data);
-    } catch (error) {
-      console.error('Error fetching topic info:', error);
-    }
+  // Format time remaining until next generation
+  const formatTimeRemaining = (milliseconds) => {
+    const hours = Math.floor(milliseconds / (1000 * 60 * 60));
+    const minutes = Math.floor((milliseconds % (1000 * 60 * 60)) / (1000 * 60));
+    return `${hours}h ${minutes}m`;
   };
 
   const handleGenerateQuestions = async () => {
-    setGenerating(true);
+    if (topicInfo && !topicInfo.canGenerateToday) {
+      setMessage({ 
+        type: 'error', 
+        text: `✗ Questions already generated for today. Next generation available at midnight.` 
+      });
+      return;
+    }
+    
     setMessage({ type: '', text: '' });
     try {
-      const res = await adminService.generateQuestions();
-      setMessage({ type: 'success', text: `✓ ${res.data.message}. Generated ${res.data.questionsGenerated} questions for ${res.data.topic}` });
-      await fetchTopicInfo();
+      const res = await generateQuestionsMutation.mutateAsync();
+      setMessage({ 
+        type: 'success', 
+        text: `✓ ${res.data.message}. Generated ${res.data.questionsGenerated} questions for ${res.data.topic}` 
+      });
     } catch (error) {
-      setMessage({ type: 'error', text: `✗ Failed to generate questions: ${error.response?.data?.error || error.message}` });
-    } finally {
-      setGenerating(false);
+      const errorMsg = error.response?.data?.message || error.response?.data?.error || error.message;
+      setMessage({ type: 'error', text: `✗ ${errorMsg}` });
     }
   };
 
   const handleRotateTopic = async () => {
     setMessage({ type: '', text: '' });
     try {
-      const res = await adminService.rotateTopic();
-      setMessage({ type: 'success', text: `✓ ${res.data.message}. New topic: ${res.data.currentTopic.name}` });
-      await Promise.all([fetchAdminData(), fetchTopicInfo()]);
+      const res = await rotateTopicMutation.mutateAsync();
+      setMessage({ 
+        type: 'success', 
+        text: `✓ ${res.data.message}. New topic: ${res.data.currentTopic.name}` 
+      });
     } catch (error) {
-      setMessage({ type: 'error', text: `✗ Failed to rotate topic: ${error.response?.data?.error || error.message}` });
+      setMessage({ 
+        type: 'error', 
+        text: `✗ Failed to rotate topic: ${error.response?.data?.error || error.message}` 
+      });
     }
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-center">Loading admin dashboard...</div>
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="mt-4 text-gray-600">Loading admin dashboard...</p>
+        </div>
       </div>
     );
   }
@@ -135,10 +139,14 @@ export const AdminDashboard = () => {
         <div className="flex gap-4">
           <button
             onClick={handleGenerateQuestions}
-            disabled={generating}
+            disabled={generateQuestionsMutation.isPending || (topicInfo && !topicInfo.canGenerateToday)}
             className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
+            title={topicInfo && !topicInfo.canGenerateToday ? `Questions already generated. Next available at ${new Date(topicInfo.nextGenerationTime).toLocaleTimeString()}` : ''}
           >
-            {generating ? '⏳ Generating...' : '🤖 Generate Today\'s Questions'}
+            {generateQuestionsMutation.isPending ? '⏳ Generating...' : 
+             (topicInfo && !topicInfo.canGenerateToday) ? 
+             `🔒 Generated (Next: ${formatTimeRemaining(topicInfo.timeUntilNextGeneration)})` : 
+             '🤖 Generate Today\'s Questions'}
           </button>
           <button
             onClick={handleRotateTopic}
@@ -152,7 +160,10 @@ export const AdminDashboard = () => {
           <p className="font-semibold">💡 Note:</p>
           <p>Question generation uses Google Gemini API (FREE tier).</p>
           <p>Get your FREE API key from: <a href="https://makersuite.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="underline font-semibold">Google AI Studio</a></p>
-          <p>Questions are automatically generated daily at midnight.</p>
+          <p>Questions can only be generated <strong>once per 24 hours</strong> and are automatically generated daily at midnight.</p>
+          {topicInfo && !topicInfo.canGenerateToday && (
+            <p className="mt-2 font-semibold">⏳ Next generation available in: {formatTimeRemaining(topicInfo.timeUntilNextGeneration)}</p>
+          )}
         </div>
       </div>
 

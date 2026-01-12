@@ -1,33 +1,38 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import { setUser, setLoading, logout as logoutAction, setCredentials } from '../store/slices/authSlice';
 import axios from 'axios';
 
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('token'));
-  const [loading, setLoading] = useState(true);
+  const dispatch = useDispatch();
+  const { user, token, loading } = useSelector((state) => state.auth);
 
   useEffect(() => {
-    if (token) {
-      try {
-        const raw = localStorage.getItem('user');
-        const userData = raw ? JSON.parse(raw) : null;
-        setUser(userData);
-      } catch (err) {
-        console.error('Failed to parse user from storage:', err);
-        localStorage.removeItem('user');
-        setUser(null);
+    // Initialize auth state from localStorage
+    const initAuth = async () => {
+      const storedToken = localStorage.getItem('token');
+      const storedUser = localStorage.getItem('user');
+
+      if (storedToken && storedUser) {
+        try {
+          const userData = JSON.parse(storedUser);
+          dispatch(setUser(userData));
+        } catch (err) {
+          console.error('Failed to parse user from storage:', err);
+          localStorage.removeItem('user');
+          localStorage.removeItem('token');
+        }
       }
-    }
-    setLoading(false);
-  }, [token]);
+      dispatch(setLoading(false));
+    };
+
+    initAuth();
+  }, [dispatch]);
 
   const login = (token, userData) => {
-    setToken(token);
-    setUser(userData);
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(userData));
+    dispatch(setCredentials({ token, user: userData }));
   };
 
   const refreshUser = async () => {
@@ -49,18 +54,14 @@ export const AuthProvider = ({ children }) => {
         totalCorrect: response.data.totalCorrect,
       };
       
-      setUser(updatedUser);
-      localStorage.setItem('user', JSON.stringify(updatedUser));
+      dispatch(setUser(updatedUser));
     } catch (error) {
       console.error('Error refreshing user data:', error);
     }
   };
 
   const logout = () => {
-    setToken(null);
-    setUser(null);
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    dispatch(logoutAction());
   };
 
   return (

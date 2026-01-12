@@ -1,21 +1,13 @@
-import React, { useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React from 'react';
+import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 export const HomePage = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
 
-  useEffect(() => {
-    // If user is already logged in, redirect to dashboard
-    if (user) {
-      navigate('/dashboard');
-    }
-  }, [user, navigate]);
-
-  // Don't render homepage if user is logged in
+  // If user is already logged in, redirect to appropriate dashboard
   if (user) {
-    return null;
+    return user.role === 'admin' ? <Navigate to="/admin" replace /> : <Navigate to="/dashboard" replace />;
   }
 
   return (

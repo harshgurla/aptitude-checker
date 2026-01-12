@@ -77,8 +77,8 @@ export const generateTodayQuestions = async () => {
     const activeTopics = await Topic.find({ isActive: true });
 
     if (activeTopics.length === 0) {
-      console.warn('No active topic for today');
-      return;
+      console.error('❌ No active topic set for question generation. Please activate a topic first.');
+      return { success: false, message: 'No active topic', questionsGenerated: 0 };
     }
 
     const topic = activeTopics[0];
@@ -98,8 +98,8 @@ export const generateTodayQuestions = async () => {
     }).countDocuments();
 
     if (existingQuestions >= QUESTIONS_PER_TEST) {
-      console.log(`✓ Questions already generated for ${topic.name}`);
-      return;
+      console.log(`✓ Questions already generated for ${topic.name} today (${existingQuestions} questions)`);
+      return { success: true, message: `Questions already exist for ${topic.name}`, questionsGenerated: existingQuestions };
     }
 
     // Generate questions for each difficulty level
@@ -139,8 +139,10 @@ export const generateTodayQuestions = async () => {
     await topic.save();
 
     console.log(`✓ Generated ${QUESTIONS_PER_TEST} questions for ${topic.name}`);
+    return { success: true, message: `Generated ${QUESTIONS_PER_TEST} questions for ${topic.name}`, questionsGenerated: QUESTIONS_PER_TEST };
   } catch (error) {
-    console.error('Error generating questions:', error);
+    console.error('❌ Error generating questions:', error.message);
+    throw error; // Re-throw so the controller knows generation failed
   }
 };
 

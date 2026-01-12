@@ -1,51 +1,30 @@
-import React, { useState, useEffect } from 'react';
-import { testService, dashboardService } from '../services/api';
+import React from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { useDashboard, useLeaderboard } from '../hooks/useDashboardQueries';
 import { Leaderboard } from '../components/Leaderboard';
 import { AccuracyChart } from '../components/AccuracyChart';
 import { Link } from 'react-router-dom';
 
 export const DashboardPage = () => {
   const { user, refreshUser } = useAuth();
-  const [todayTopic, setTodayTopic] = useState(null);
-  const [testHistory, setTestHistory] = useState([]);
-  const [userRank, setUserRank] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [accuracyData, setAccuracyData] = useState([]);
+  
+  // React Query hooks - automatic caching and refetching
+  const { data: dashboardData, isLoading: dashboardLoading } = useDashboard();
+  const { data: leaderboardData, isLoading: leaderboardLoading } = useLeaderboard();
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-  const fetchDashboardData = async () => {
-    try {
-      // Refresh user data to get latest stats
-      await refreshUser();
-      
-      const [topicRes, historyRes, rankRes] = await Promise.all([
-        dashboardService.getTodayTopic(),
-        testService.getTestHistory(5),
-        dashboardService.getUserRank(),
-      ]);
-
-      setTodayTopic(topicRes.data.topic);
-      setTestHistory(historyRes.data.tests);
-      setUserRank(rankRes.data.rank);
-
-      // Extract accuracy data for chart
-      const accuracies = historyRes.data.tests.map((t) => parseFloat(t.accuracy));
-      setAccuracyData(accuracies);
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loading = dashboardLoading;
+  const todayTopic = dashboardData?.todayTopic;
+  const testHistory = dashboardData?.recentTests || [];
+  const userRank = dashboardData?.userRank;
+  const accuracyData = testHistory.map((t) => parseFloat(t.accuracy));
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64 bg-gray-50 dark:bg-gray-900">
-        <div className="text-center text-gray-700 dark:text-gray-300">Loading dashboard...</div>
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="mt-4 text-gray-700 dark:text-gray-300">Loading dashboard...</p>
+        </div>
       </div>
     );
   }
