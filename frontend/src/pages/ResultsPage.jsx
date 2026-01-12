@@ -80,9 +80,9 @@ export const ResultsPage = () => {
         </div>
 
         {result.motivationalMessage && (
-          <div className="bg-amber-50 border-l-4 border-amber-600 p-4 rounded mt-6">
-            <p className="text-amber-900">
-              <span className="font-bold">💡 Motivation:</span> {result.motivationalMessage}
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-l-4 border-amber-500 p-6 rounded-lg mt-6 shadow-sm">
+            <p className="text-amber-900 text-xl font-serif leading-relaxed italic">
+              {result.motivationalMessage}
             </p>
           </div>
         )}
