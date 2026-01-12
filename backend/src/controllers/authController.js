@@ -45,6 +45,9 @@ export const registerUser = async (req, res) => {
 
     await user.save();
 
+    // Get current total users to set proper initial rank
+    const totalUsers = await Leaderboard.countDocuments();
+    
     // Create leaderboard entry with proper initial values
     await Leaderboard.create({
       student: user._id,
@@ -56,11 +59,16 @@ export const registerUser = async (req, res) => {
       accuracy: 0,
       consistencyScore: 0,
       totalTestsTaken: 0,
-      rank: 99999, // Temporary - will be recalculated
+      rank: totalUsers + 1, // New user gets last position
     });
 
-    // Recalculate ranks for all users (new user will get proper rank at bottom)
-    await updateLeaderboardRanks();
+    // Recalculate ranks for all users to ensure consistency
+    try {
+      await updateLeaderboardRanks();
+    } catch (rankError) {
+      console.error('Error updating ranks after registration:', rankError);
+      // Continue with registration even if rank update fails
+    }
 
     // Generate token
     const token = generateToken(user._id.toString(), user.role);
