@@ -7,17 +7,27 @@ let model = null;
 const initializeGemini = () => {
   if (model) return model; // Already initialized
   
-  if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === '' || process.env.GEMINI_API_KEY === 'your-gemini-api-key-here') {
-    throw new Error('GEMINI_API_KEY not configured in .env file. Get your FREE key from: https://makersuite.google.com/app/apikey');
+  console.log('🔧 [initializeGemini] Checking Gemini API key...');
+  const apiKey = process.env.GEMINI_API_KEY;
+  
+  if (!apiKey || apiKey === '' || apiKey === 'your-gemini-api-key-here' || apiKey === 'your-gemini-api-key') {
+    const error = 'GEMINI_API_KEY not configured in environment variables';
+    console.error('❌ [initializeGemini] ' + error);
+    console.log('   Please set GEMINI_API_KEY in your Render environment variables');
+    console.log('   Get your FREE key from: https://makersuite.google.com/app/apikey');
+    throw new Error(error);
   }
   
   try {
-    genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    model = genAI.getGenerativeModel({ model: process.env.GEMINI_MODEL || 'gemini-1.5-pro' });
-    console.log('✓ Google Gemini initialized successfully');
+    console.log('🔧 [initializeGemini] Creating GoogleGenerativeAI instance...');
+    genAI = new GoogleGenerativeAI(apiKey);
+    const modelName = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+    console.log(`🔧 [initializeGemini] Getting model: ${modelName}`);
+    model = genAI.getGenerativeModel({ model: modelName });
+    console.log('✓ [initializeGemini] Google Gemini initialized successfully');
     return model;
   } catch (error) {
-    console.error('❌ Failed to initialize Gemini:', error.message);
+    console.error('❌ [initializeGemini] Failed to initialize Gemini:', error.message);
     throw new Error(`Gemini initialization failed: ${error.message}`);
   }
 };
@@ -63,39 +73,84 @@ Example format for multiple questions:
 
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      console.log(`🤖 Generating ${count} ${difficulty} questions for "${topic}" (Attempt ${attempt}/${retries})`);
+      console.log(`🤖 [generateQuestionsAI] Generating ${count} ${difficulty} questions for "${topic}" (Attempt ${attempt}/${retries})`);
       
-      const result = await aiModel.generateContent(prompt);
-      const response = await result.response;
-      let content = response.text().trim();
+      let result;
+      try {
+        result = await aiModel.generateContent(prompt);
+      } catch (error) {
+        console.error(`❌ [generateQuestionsAI] API call failed:`, error.message);
+        throw new Error(`API call failed: ${error.message}`);
+      }
+      
+      if (!result || !result.response) {
+        throw new Error('No response received from Gemini API');
+      }
+      
+      let content;
+      try {
+        content = result.response.text().trim();
+      } catch (error) {
+        console.error(`❌ [generateQuestionsAI] Failed to extract text from response:`, error.message);
+        throw new Error(`Failed to extract response text: ${error.message}`);
+      }
+      
+      if (!content) {
+        throw new Error('Empty response received from Gemini API');
+      }
       
       // Remove markdown code blocks if present
       content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       
-      const questions = JSON.parse(content);
+      let questions;
+      try {
+        questions = JSON.parse(content);
+      } catch (error) {
+        console.error(`❌ [generateQuestionsAI] Failed to parse JSON response:`, error.message);
+        console.error(`   Response preview: ${content.substring(0, 200)}`);
+        throw new Error(`Invalid JSON in response: ${error.message}`);
+      }
+      
       const questionsArray = Array.isArray(questions) ? questions : [questions];
       
+      if (questionsArray.length === 0) {
+        throw new Error('No questions received from AI');
+      }
+      
       // Validate question structure
-      for (const q of questionsArray) {
-        if (!q.question || !q.options || q.options.length !== 4 || !q.correctAnswer) {
-          throw new Error('Invalid question format received from AI');
+      for (let i = 0; i < questionsArray.length; i++) {
+        const q = questionsArray[i];
+        if (!q.question) {
+          throw new Error(`Question ${i + 1} missing 'question' field`);
+        }
+        if (!q.options) {
+          throw new Error(`Question ${i + 1} missing 'options' field`);
+        }
+        if (!Array.isArray(q.options) || q.options.length !== 4) {
+          throw new Error(`Question ${i + 1} must have exactly 4 options`);
+        }
+        if (!q.correctAnswer) {
+          throw new Error(`Question ${i + 1} missing 'correctAnswer' field`);
         }
       }
       
-      console.log(`✓ Successfully generated ${questionsArray.length} questions`);
+      console.log(`✓ [generateQuestionsAI] Successfully generated ${questionsArray.length} questions`);
       return questionsArray;
       
     } catch (error) {
-      console.error(`❌ Attempt ${attempt}/${retries} failed:`, error.message);
+      console.error(`❌ [generateQuestionsAI] Attempt ${attempt}/${retries} failed: ${error.message}`);
       
       if (attempt === retries) {
         throw new Error(`Failed to generate questions after ${retries} attempts: ${error.message}`);
       }
       
       // Wait before retry (exponential backoff)
-      await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      const waitTime = 1000 * attempt;
+      console.log(`   Retrying in ${waitTime}ms...`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
     }
   }
+};
 };
 
 export const generateMotivationalMessage = async (score, totalQuestions, streak) => {

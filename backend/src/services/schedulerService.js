@@ -74,14 +74,23 @@ export const rotateDailyTopic = async () => {
 
 export const generateTodayQuestions = async () => {
   try {
-    const activeTopics = await Topic.find({ isActive: true });
+    console.log('🚀 [generateTodayQuestions] Starting question generation...');
+    
+    let activeTopics;
+    try {
+      activeTopics = await Topic.find({ isActive: true });
+    } catch (error) {
+      console.error('❌ [generateTodayQuestions] Error finding active topics:', error.message);
+      throw new Error(`Failed to fetch active topics: ${error.message}`);
+    }
 
     if (activeTopics.length === 0) {
-      console.error('❌ No active topic set for question generation. Please activate a topic first.');
+      console.error('❌ [generateTodayQuestions] No active topic set for question generation');
       return { success: false, message: 'No active topic', questionsGenerated: 0 };
     }
 
     const topic = activeTopics[0];
+    console.log(`✓ [generateTodayQuestions] Active topic: ${topic.name}`);
 
     // Check if questions already generated today
     const today = new Date();
@@ -89,78 +98,110 @@ export const generateTodayQuestions = async () => {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const existingQuestions = await Question.find({
-      topic: topic._id,
-      createdAt: {
-        $gte: today,
-        $lt: tomorrow,
-      },
-    }).countDocuments();
-
-    if (existingQuestions >= QUESTIONS_PER_TEST) {
-      console.log(`✓ Questions already generated for ${topic.name} today (${existingQuestions} questions)`);
-      return { success: true, message: `Questions already exist for ${topic.name}`, questionsGenerated: existingQuestions };
-    }
-
-    // Generate questions for each difficulty level
-    console.log(`🚀 Starting question generation for ${topic.name}...`);
-    let totalGenerated = 0;
-
-    for (const [difficulty, count] of Object.entries(DIFFICULTY_SPLIT)) {
-      const existingCount = await Question.find({
+    let existingQuestions;
+    try {
+      existingQuestions = await Question.find({
         topic: topic._id,
-        difficulty,
         createdAt: {
           $gte: today,
           $lt: tomorrow,
         },
       }).countDocuments();
+    } catch (error) {
+      console.error('❌ [generateTodayQuestions] Error counting existing questions:', error.message);
+      throw new Error(`Failed to count existing questions: ${error.message}`);
+    }
 
-      const questionsToGenerate = count - existingCount;
+    if (existingQuestions >= QUESTIONS_PER_TEST) {
+      console.log(`✓ [generateTodayQuestions] Questions already generated for ${topic.name} today (${existingQuestions} questions)`);
+      return { success: true, message: `Questions already exist for ${topic.name}`, questionsGenerated: existingQuestions };
+    }
 
-      if (questionsToGenerate > 0) {
-        try {
-          console.log(`📝 Generating ${questionsToGenerate} ${difficulty} questions...`);
-          const generatedQuestions = await generateQuestionsAI(topic.name, difficulty, questionsToGenerate);
+    // Generate questions for each difficulty level
+    console.log(`📝 [generateTodayQuestions] Generating questions for ${topic.name}...`);
+    let totalGenerated = 0;
 
-          for (const q of generatedQuestions) {
-            const signature = crypto.createHash('sha256').update(`${q.question}${topic.name}${difficulty}`).digest('hex');
+    for (const [difficulty, count] of Object.entries(DIFFICULTY_SPLIT)) {
+      try {
+        const existingCount = await Question.find({
+          topic: topic._id,
+          difficulty,
+          createdAt: {
+            $gte: today,
+            $lt: tomorrow,
+          },
+        }).countDocuments();
 
-            await Question.create({
-              topic: topic._id,
-              category: q.category,
-              difficulty,
-              question: q.question,
-              options: q.options,
-              correctAnswer: q.correctAnswer,
-              correctAnswerExplanation: q.explanation,
-              questionSignature: signature,
-              createdByAI: true,
-              aiPromptUsed: topic.name,
-            });
-            totalGenerated++;
+        const questionsToGenerate = count - existingCount;
+
+        if (questionsToGenerate > 0) {
+          try {
+            console.log(`📝 [generateTodayQuestions] Generating ${questionsToGenerate} ${difficulty} questions...`);
+            const generatedQuestions = await generateQuestionsAI(topic.name, difficulty, questionsToGenerate);
+
+            if (!Array.isArray(generatedQuestions)) {
+              console.error(`❌ [generateTodayQuestions] Invalid response from AI: not an array`);
+              continue;
+            }
+
+            for (const q of generatedQuestions) {
+              try {
+                if (!q.question || !q.options || !q.correctAnswer) {
+                  console.warn(`⚠️ [generateTodayQuestions] Skipping invalid question: missing required fields`);
+                  continue;
+                }
+
+                const signature = crypto.createHash('sha256').update(`${q.question}${topic.name}${difficulty}`).digest('hex');
+
+                await Question.create({
+                  topic: topic._id,
+                  category: q.category || 'Quantitative Aptitude',
+                  difficulty,
+                  question: q.question,
+                  options: q.options,
+                  correctAnswer: q.correctAnswer,
+                  correctAnswerExplanation: q.explanation || '',
+                  questionSignature: signature,
+                  createdByAI: true,
+                  aiPromptUsed: topic.name,
+                });
+                totalGenerated++;
+              } catch (error) {
+                console.error(`⚠️ [generateTodayQuestions] Failed to save question:`, error.message);
+                // Continue with next question
+              }
+            }
+            
+            console.log(`✓ [generateTodayQuestions] Generated ${questionsToGenerate} ${difficulty} questions`);
+          } catch (error) {
+            console.error(`❌ [generateTodayQuestions] Failed to generate ${difficulty} questions:`, error.message);
+            // Continue with other difficulty levels even if one fails
           }
-          
-          console.log(`✓ Generated ${questionsToGenerate} ${difficulty} questions`);
-        } catch (error) {
-          console.error(`❌ Failed to generate ${difficulty} questions:`, error.message);
-          // Continue with other difficulty levels even if one fails
         }
+      } catch (error) {
+        console.error(`❌ [generateTodayQuestions] Error processing ${difficulty} difficulty:`, error.message);
+        // Continue with other difficulty levels
       }
     }
 
     if (totalGenerated === 0) {
+      console.error('❌ [generateTodayQuestions] Failed to generate any questions');
       throw new Error('Failed to generate any questions');
     }
 
-    topic.questionsGenerated = totalGenerated;
-    await topic.save();
+    try {
+      topic.questionsGenerated = totalGenerated;
+      await topic.save();
+    } catch (error) {
+      console.error('⚠️ [generateTodayQuestions] Failed to save topic:', error.message);
+      // Continue anyway - we generated questions even if we can't update the topic
+    }
 
-    console.log(`✅ Successfully generated ${totalGenerated} questions for ${topic.name}`);
+    console.log(`✅ [generateTodayQuestions] Successfully generated ${totalGenerated} questions for ${topic.name}`);
     return { success: true, message: `Generated ${totalGenerated} questions for ${topic.name}`, questionsGenerated: totalGenerated };
   } catch (error) {
-    console.error('❌ Error generating questions:', error.message);
-    throw error; // Re-throw so the controller knows generation failed
+    console.error('❌ [generateTodayQuestions] Error generating questions:', error.message, error.stack);
+    return { success: false, message: `Error: ${error.message}`, questionsGenerated: 0 };
   }
 };
 

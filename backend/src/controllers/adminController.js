@@ -246,32 +246,60 @@ export const getDetailedAnalytics = async (req, res) => {
 // Generate today's questions manually (once per 24 hours)
 export const generateQuestionsManually = async (req, res) => {
   try {
+    console.log('📌 [generateQuestionsManually] Starting question generation request...');
+    
     // Check if questions were already generated today
-    const todayTopic = await getTodayTopic();
+    let todayTopic;
+    try {
+      todayTopic = await getTodayTopic();
+    } catch (error) {
+      console.error('❌ [generateQuestionsManually] Error fetching today topic:', error.message);
+      return res.status(500).json({ 
+        error: 'Failed to fetch active topic',
+        details: error.message,
+        questionsGenerated: 0
+      });
+    }
     
     if (!todayTopic) {
+      console.warn('⚠️ [generateQuestionsManually] No active topic found');
       return res.status(400).json({ 
         error: 'No active topic found. Please activate a topic first.',
         questionsGenerated: 0
       });
     }
     
+    console.log(`✓ [generateQuestionsManually] Active topic: ${todayTopic.name}`);
+    
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
     
-    const existingQuestionsCount = await Question.countDocuments({
-      topic: todayTopic._id,
-      createdAt: {
-        $gte: today,
-        $lt: tomorrow,
-      },
-    });
+    let existingQuestionsCount = 0;
+    try {
+      existingQuestionsCount = await Question.countDocuments({
+        topic: todayTopic._id,
+        createdAt: {
+          $gte: today,
+          $lt: tomorrow,
+        },
+      });
+    } catch (error) {
+      console.error('❌ [generateQuestionsManually] Error counting existing questions:', error.message);
+      return res.status(500).json({
+        error: 'Failed to check existing questions',
+        details: error.message,
+        questionsGenerated: 0
+      });
+    }
+    
+    console.log(`📊 [generateQuestionsManually] Existing questions today: ${existingQuestionsCount}`);
     
     // Enforce 24-hour cooldown: only allow generation once per day
     if (existingQuestionsCount > 0) {
       const nextMidnight = new Date(tomorrow);
+      console.log(`⏳ [generateQuestionsManually] Questions already generated. Next available: ${nextMidnight.toISOString()}`);
       return res.status(400).json({ 
         error: 'Questions already generated for today',
         message: `Questions for "${todayTopic.name}" have already been generated today. You can generate new questions after midnight.`,
@@ -282,23 +310,44 @@ export const generateQuestionsManually = async (req, res) => {
     }
     
     // Generate questions
-    const result = await generateTodayQuestions();
-    
-    if (!result.success) {
-      return res.status(400).json({ 
-        message: result.message,
+    console.log('🤖 [generateQuestionsManually] Calling generateTodayQuestions()...');
+    let result;
+    try {
+      result = await generateTodayQuestions();
+    } catch (error) {
+      console.error('❌ [generateQuestionsManually] Error in generateTodayQuestions:', error.message, error.stack);
+      return res.status(500).json({ 
+        error: 'Question generation failed',
+        message: error.message,
         questionsGenerated: 0,
-        error: result.message || 'Failed to generate questions'
+        details: error.message
       });
     }
     
-    const questionsCount = await Question.countDocuments({ 
-      topic: todayTopic._id,
-      createdAt: {
-        $gte: today,
-        $lt: tomorrow,
-      },
-    });
+    if (!result || !result.success) {
+      console.warn('⚠️ [generateQuestionsManually] Generation returned failure status');
+      return res.status(400).json({ 
+        message: result?.message || 'Generation failed',
+        questionsGenerated: 0,
+        error: result?.message || 'Failed to generate questions'
+      });
+    }
+    
+    let questionsCount = 0;
+    try {
+      questionsCount = await Question.countDocuments({ 
+        topic: todayTopic._id,
+        createdAt: {
+          $gte: today,
+          $lt: tomorrow,
+        },
+      });
+    } catch (error) {
+      console.error('❌ [generateQuestionsManually] Error counting generated questions:', error.message);
+      questionsCount = result.questionsGenerated || 0;
+    }
+    
+    console.log(`✅ [generateQuestionsManually] Success! Generated ${questionsCount} questions`);
     
     res.json({
       message: result.message || 'Questions generated successfully',
@@ -308,10 +357,12 @@ export const generateQuestionsManually = async (req, res) => {
       nextGenerationTime: tomorrow
     });
   } catch (error) {
-    console.error('Error generating questions:', error);
+    console.error('❌ [generateQuestionsManually] Unexpected error:', error.message, error.stack);
     res.status(500).json({ 
-      error: 'Failed to generate questions',
-      details: error.message 
+      error: 'Unexpected error during question generation',
+      message: error.message,
+      details: error.message,
+      questionsGenerated: 0
     });
   }
 };
