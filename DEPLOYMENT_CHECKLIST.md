@@ -244,7 +244,7 @@ PORT=5000
 MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/aptitude-test-db
 JWT_SECRET=<generate-with-openssl-rand-base64-32>
 JWT_EXPIRY=7d
-GEMINI_API_KEY=AIzaSyAGhO8SHsEwxIoiMWZp4Ap72gfrLjknvDQ
+GEMINI_API_KEY=[your-google-gemini-api-key]
 GEMINI_MODEL=gemini-2.5-flash
 CORS_ORIGIN=https://your-frontend-domain.com
 ```
