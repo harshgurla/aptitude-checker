@@ -98,12 +98,12 @@ Click "Advanced" → "Add Environment Variable" for each:
 |-----|-------|
 | `NODE_ENV` | `production` |
 | `PORT` | `10000` |
-| `MONGODB_URI` | `mongodb+srv://aptitude_admin:YOUR_PASSWORD@cluster.mongodb.net/aptitude-test-db?retryWrites=true&w=majority` |
-| `JWT_SECRET` | `tm4tVb/bFjHyNXMWfPeSSELJu3Mg7Wahdx/9sIpWIds=` |
+| `MONGODB_URI` | `[your-mongodb-uri]` |
+| `JWT_SECRET` | `[use: openssl rand -base64 32]` |
 | `JWT_EXPIRY` | `7d` |
-| `GEMINI_API_KEY` | `AIzaSyAGhO8SHsEwxIoiMWZp4Ap72gfrLjknvDQ` |
-| `GEMINI_MODEL` | `gemini-2.5-flash` |
-| `CORS_ORIGIN` | `https://aptitude-master-frontend.onrender.com` |
+| `GEMINI_API_KEY` | `[your-google-gemini-api-key]` |
+| `GEMINI_MODEL` | `gemini-1.5-flash` |
+| `CORS_ORIGIN` | `https://your-frontend-url.onrender.com` |
 
 **Note**: Update `CORS_ORIGIN` with your actual frontend URL once you create it.
 
