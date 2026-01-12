@@ -143,9 +143,13 @@ export const ResultsPage = () => {
                     {question.explanation && (
                       <div>
                         <p className="text-sm font-semibold text-gray-700 mb-2">Explanation:</p>
-                        <p className="p-3 rounded bg-blue-50 text-blue-900">
-                          {question.explanation}
-                        </p>
+                        <div className="p-4 rounded-lg bg-blue-50 text-blue-900 leading-relaxed">
+                          {question.explanation.split('\n').map((line, index) => (
+                            <p key={index} className={line.trim() === '' ? 'h-2' : 'mb-2'}>
+                              {line}
+                            </p>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>

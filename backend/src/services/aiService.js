@@ -54,7 +54,7 @@ For each question, provide the following in JSON format:
     {"id": "D", "text": "Option D text"}
   ],
   "correctAnswer": "A|B|C|D",
-  "explanation": "Brief explanation of the correct answer"
+  "explanation": "Step-by-step explanation of the correct answer"
 }
 
 Requirements:
@@ -64,6 +64,22 @@ Requirements:
 - Ensure difficulty matches the requested level
 - Make questions engaging and educational
 - Return ONLY valid JSON array format, no markdown, no code blocks
+
+EXPLANATION FORMAT - VERY IMPORTANT:
+- Write explanations in a clear, step-by-step manner like a teacher explaining to a student
+- Break down the solution into numbered steps or clear paragraphs
+- Use proper line breaks (\\n\\n) between major steps for readability
+- Start each step on a new line when appropriate
+- For mathematical problems:
+  * State what is given clearly at the beginning
+  * Show each calculation step separately
+  * Explain WHY you're doing each step, not just WHAT
+  * Use clear mathematical notation
+- Write naturally like a human teacher, not in cramped single-line format
+- Make it easy to understand for students who might struggle with the topic
+
+Example of GOOD explanation format:
+"Let's solve this step by step:\\n\\nGiven: x + (1/x) = √3\\n\\nStep 1: Square both sides\\nWhen we square both sides, we get:\\n(x + 1/x)² = (√3)²\\n\\nStep 2: Expand the left side\\nUsing the formula (a + b)² = a² + 2ab + b²:\\nx² + 2(x)(1/x) + (1/x)² = 3\\nx² + 2 + 1/x² = 3\\n\\nStep 3: Simplify\\nSubtract 2 from both sides:\\nx² + 1/x² = 1\\n\\nStep 4: Find x⁴ - x² + 1\\nMultiplying the equation by x²:\\nx⁴ + 1 = x²\\nRearranging:\\nx⁴ - x² + 1 = 0\\n\\nTherefore, the answer is 0."
 
 Example format for multiple questions:
 [
