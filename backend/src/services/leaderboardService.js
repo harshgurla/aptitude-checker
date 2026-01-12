@@ -66,19 +66,34 @@ export const updateUserStats = async (userId) => {
 
 export const updateLeaderboardRanks = async () => {
   try {
-    // Sort by: totalTestsTaken (must have at least 1), then streak desc, totalCorrect desc, accuracy desc, consistency desc
-    // This ensures new users without any tests stay at the bottom
-    const sorted = await Leaderboard.find()
-      .sort({
-        totalTestsTaken: -1, // Users with tests come first
-        currentStreak: -1,   // Then by streak
-        totalCorrectAnswers: -1, // Then by correct answers
-        accuracy: -1,        // Then by accuracy
-        consistencyScore: -1, // Finally by consistency
-        _id: 1,              // Consistent ordering for ties
-      })
-      .exec();
-
+    // Get all users - separate those with tests from those without
+    const allUsers = await Leaderboard.find().exec();
+    
+    // Separate users into two groups
+    const usersWithTests = allUsers.filter(user => user.totalTestsTaken > 0);
+    const usersWithoutTests = allUsers.filter(user => user.totalTestsTaken === 0);
+    
+    // Sort users WITH tests by performance (best to worst)
+    usersWithTests.sort((a, b) => {
+      // Primary: currentStreak (higher is better)
+      if (b.currentStreak !== a.currentStreak) return b.currentStreak - a.currentStreak;
+      
+      // Secondary: totalCorrectAnswers (higher is better)
+      if (b.totalCorrectAnswers !== a.totalCorrectAnswers) return b.totalCorrectAnswers - a.totalCorrectAnswers;
+      
+      // Tertiary: accuracy (higher is better)
+      if (b.accuracy !== a.accuracy) return b.accuracy - a.accuracy;
+      
+      // Quaternary: consistencyScore (higher is better)
+      if (b.consistencyScore !== a.consistencyScore) return b.consistencyScore - a.consistencyScore;
+      
+      // Final: _id for consistent ordering
+      return a._id.toString().localeCompare(b._id.toString());
+    });
+    
+    // Combine: users with tests first, then users without tests
+    const sorted = [...usersWithTests, ...usersWithoutTests];
+    
     // Update ranks
     for (let i = 0; i < sorted.length; i++) {
       sorted[i].rank = i + 1;
