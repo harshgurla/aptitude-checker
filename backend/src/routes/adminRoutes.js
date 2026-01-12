@@ -6,6 +6,7 @@ import {
   resumeStudentTests,
   toggleStudentActive,
   resetLeaderboard,
+  fixLeaderboardRanks,
   getAdminDashboard,
   getDetailedAnalytics,
   generateQuestionsManually,
@@ -26,6 +27,7 @@ router.post('/student/:studentId/pause', ...adminOnly, pauseStudentTests);
 router.post('/student/:studentId/resume', ...adminOnly, resumeStudentTests);
 router.post('/student/:studentId/toggle', ...adminOnly, toggleStudentActive);
 router.post('/leaderboard/reset', ...adminOnly, resetLeaderboard);
+router.post('/leaderboard/fix-ranks', ...adminOnly, fixLeaderboardRanks);
 router.get('/analytics', ...adminOnly, getDetailedAnalytics);
 
 // Question generation and topic management (with rate limiting)

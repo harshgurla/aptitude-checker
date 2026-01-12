@@ -153,6 +153,20 @@ export const resetLeaderboard = async (req, res) => {
   }
 };
 
+// Fix leaderboard ranks (one-time fix for existing users)
+export const fixLeaderboardRanks = async (req, res) => {
+  try {
+    await updateLeaderboardRanks();
+    
+    res.json({
+      message: 'Leaderboard ranks updated successfully',
+    });
+  } catch (error) {
+    console.error('Error fixing leaderboard ranks:', error);
+    res.status(500).json({ error: 'Failed to fix leaderboard ranks' });
+  }
+};
+
 export const getAdminDashboard = async (req, res) => {
   try {
     const totalStudents = await User.countDocuments({ role: 'student' });
