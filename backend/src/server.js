@@ -12,6 +12,7 @@ import { Server } from 'socket.io';
 import connectDB from './config/database.js';
 import { initializeScheduler } from './services/schedulerService.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
+import { apiLimiter } from './middleware/rateLimiter.js';
 
 import authRoutes from './routes/authRoutes.js';
 import testRoutes from './routes/testRoutes.js';
@@ -27,18 +28,29 @@ const io = new Server(httpServer, {
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true,
   },
+  // Performance settings for 100+ concurrent users
+  transports: ['websocket', 'polling'],
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  maxHttpBufferSize: 1e6, // 1MB
+  perMessageDeflate: true,
 });
 
 // Middleware
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 app.use(compression());
 app.use(morgan('dev'));
 app.use(cors({
   origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
   credentials: true,
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Apply rate limiting to all API routes
+app.use('/api/', apiLimiter);
 
 // Connect to database
 await connectDB();

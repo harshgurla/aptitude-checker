@@ -1,0 +1,8 @@
+# Build settings for Render.com
+# Static site configuration for Single Page Application
+
+# Make sure all routes serve index.html for client-side routing
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

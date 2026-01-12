@@ -13,6 +13,7 @@ import {
   getTodayTopicInfo,
 } from '../controllers/adminController.js';
 import { authMiddleware, roleMiddleware } from '../middleware/auth.js';
+import { aiGenerationLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
@@ -27,8 +28,8 @@ router.post('/student/:studentId/toggle', ...adminOnly, toggleStudentActive);
 router.post('/leaderboard/reset', ...adminOnly, resetLeaderboard);
 router.get('/analytics', ...adminOnly, getDetailedAnalytics);
 
-// Question generation and topic management
-router.post('/generate-questions', ...adminOnly, generateQuestionsManually);
+// Question generation and topic management (with rate limiting)
+router.post('/generate-questions', ...adminOnly, aiGenerationLimiter, generateQuestionsManually);
 router.post('/rotate-topic', ...adminOnly, rotateTopic);
 router.get('/today-topic', ...adminOnly, getTodayTopicInfo);
 

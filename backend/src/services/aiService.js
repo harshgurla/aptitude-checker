@@ -22,7 +22,7 @@ const initializeGemini = () => {
   }
 };
 
-export const generateQuestionsAI = async (topic, difficulty, count = 1) => {
+export const generateQuestionsAI = async (topic, difficulty, count = 1, retries = 3) => {
   const aiModel = initializeGemini();
 
   const difficultyLevel = {
@@ -61,19 +61,40 @@ Example format for multiple questions:
   {"question": "...", "category": "...", "options": [...], "correctAnswer": "B", "explanation": "..."}
 ]`;
 
-  try {
-    const result = await aiModel.generateContent(prompt);
-    const response = await result.response;
-    let content = response.text().trim();
-    
-    // Remove markdown code blocks if present
-    content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    
-    const questions = JSON.parse(content);
-    return Array.isArray(questions) ? questions : [questions];
-  } catch (error) {
-    console.error('Gemini Generation Error:', error.message);
-    throw new Error(`Failed to generate questions: ${error.message}`);
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      console.log(`🤖 Generating ${count} ${difficulty} questions for "${topic}" (Attempt ${attempt}/${retries})`);
+      
+      const result = await aiModel.generateContent(prompt);
+      const response = await result.response;
+      let content = response.text().trim();
+      
+      // Remove markdown code blocks if present
+      content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      
+      const questions = JSON.parse(content);
+      const questionsArray = Array.isArray(questions) ? questions : [questions];
+      
+      // Validate question structure
+      for (const q of questionsArray) {
+        if (!q.question || !q.options || q.options.length !== 4 || !q.correctAnswer) {
+          throw new Error('Invalid question format received from AI');
+        }
+      }
+      
+      console.log(`✓ Successfully generated ${questionsArray.length} questions`);
+      return questionsArray;
+      
+    } catch (error) {
+      console.error(`❌ Attempt ${attempt}/${retries} failed:`, error.message);
+      
+      if (attempt === retries) {
+        throw new Error(`Failed to generate questions after ${retries} attempts: ${error.message}`);
+      }
+      
+      // Wait before retry (exponential backoff)
+      await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+    }
   }
 };
 

@@ -103,43 +103,61 @@ export const generateTodayQuestions = async () => {
     }
 
     // Generate questions for each difficulty level
+    console.log(`🚀 Starting question generation for ${topic.name}...`);
+    let totalGenerated = 0;
+
     for (const [difficulty, count] of Object.entries(DIFFICULTY_SPLIT)) {
-      const questionsToGenerate = count - (await Question.find({
+      const existingCount = await Question.find({
         topic: topic._id,
         difficulty,
         createdAt: {
           $gte: today,
           $lt: tomorrow,
         },
-      }).countDocuments());
+      }).countDocuments();
+
+      const questionsToGenerate = count - existingCount;
 
       if (questionsToGenerate > 0) {
-        const generatedQuestions = await generateQuestionsAI(topic.name, difficulty, questionsToGenerate);
+        try {
+          console.log(`📝 Generating ${questionsToGenerate} ${difficulty} questions...`);
+          const generatedQuestions = await generateQuestionsAI(topic.name, difficulty, questionsToGenerate);
 
-        for (const q of generatedQuestions) {
-          const signature = crypto.createHash('sha256').update(`${q.question}${topic.name}${difficulty}`).digest('hex');
+          for (const q of generatedQuestions) {
+            const signature = crypto.createHash('sha256').update(`${q.question}${topic.name}${difficulty}`).digest('hex');
 
-          await Question.create({
-            topic: topic._id,
-            category: q.category,
-            difficulty,
-            question: q.question,
-            options: q.options,
-            correctAnswer: q.correctAnswer,
-            correctAnswerExplanation: q.explanation,
-            questionSignature: signature,
-            createdByAI: true,
-            aiPromptUsed: topic.name,
-          });
+            await Question.create({
+              topic: topic._id,
+              category: q.category,
+              difficulty,
+              question: q.question,
+              options: q.options,
+              correctAnswer: q.correctAnswer,
+              correctAnswerExplanation: q.explanation,
+              questionSignature: signature,
+              createdByAI: true,
+              aiPromptUsed: topic.name,
+            });
+            totalGenerated++;
+          }
+          
+          console.log(`✓ Generated ${questionsToGenerate} ${difficulty} questions`);
+        } catch (error) {
+          console.error(`❌ Failed to generate ${difficulty} questions:`, error.message);
+          // Continue with other difficulty levels even if one fails
         }
       }
     }
 
-    topic.questionsGenerated = QUESTIONS_PER_TEST;
+    if (totalGenerated === 0) {
+      throw new Error('Failed to generate any questions');
+    }
+
+    topic.questionsGenerated = totalGenerated;
     await topic.save();
 
-    console.log(`✓ Generated ${QUESTIONS_PER_TEST} questions for ${topic.name}`);
-    return { success: true, message: `Generated ${QUESTIONS_PER_TEST} questions for ${topic.name}`, questionsGenerated: QUESTIONS_PER_TEST };
+    console.log(`✅ Successfully generated ${totalGenerated} questions for ${topic.name}`);
+    return { success: true, message: `Generated ${totalGenerated} questions for ${topic.name}`, questionsGenerated: totalGenerated };
   } catch (error) {
     console.error('❌ Error generating questions:', error.message);
     throw error; // Re-throw so the controller knows generation failed

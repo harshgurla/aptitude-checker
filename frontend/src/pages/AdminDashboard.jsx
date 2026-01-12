@@ -6,6 +6,7 @@ import {
   useGenerateQuestions,
   useRotateTopic 
 } from '../hooks/useAdminQueries';
+import { useCountdown } from '../hooks/useCountdown';
 
 export const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -14,19 +15,15 @@ export const AdminDashboard = () => {
   // React Query hooks
   const { data: dashboard, isLoading: dashboardLoading } = useAdminDashboard();
   const { data: studentsData, isLoading: studentsLoading } = useStudents(0, 20);
-  const { data: topicInfo, isLoading: topicLoading } = useTodayTopic();
+  const { data: topicInfo, isLoading: topicLoading, refetch: refetchTopicInfo } = useTodayTopic();
   const generateQuestionsMutation = useGenerateQuestions();
   const rotateTopicMutation = useRotateTopic();
 
+  // Real-time countdown
+  const countdown = useCountdown(topicInfo?.nextGenerationTime);
+
   const loading = dashboardLoading || studentsLoading || topicLoading;
   const students = studentsData?.students || [];
-
-  // Format time remaining until next generation
-  const formatTimeRemaining = (milliseconds) => {
-    const hours = Math.floor(milliseconds / (1000 * 60 * 60));
-    const minutes = Math.floor((milliseconds % (1000 * 60 * 60)) / (1000 * 60));
-    return `${hours}h ${minutes}m`;
-  };
 
   const handleGenerateQuestions = async () => {
     if (topicInfo && !topicInfo.canGenerateToday) {
@@ -145,7 +142,7 @@ export const AdminDashboard = () => {
           >
             {generateQuestionsMutation.isPending ? '⏳ Generating...' : 
              (topicInfo && !topicInfo.canGenerateToday) ? 
-             `🔒 Generated (Next: ${formatTimeRemaining(topicInfo.timeUntilNextGeneration)})` : 
+             `🔒 Generated (Next: ${countdown.formatTime()})` : 
              '🤖 Generate Today\'s Questions'}
           </button>
           <button
@@ -162,7 +159,7 @@ export const AdminDashboard = () => {
           <p>Get your FREE API key from: <a href="https://makersuite.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="underline font-semibold">Google AI Studio</a></p>
           <p>Questions can only be generated <strong>once per 24 hours</strong> and are automatically generated daily at midnight.</p>
           {topicInfo && !topicInfo.canGenerateToday && (
-            <p className="mt-2 font-semibold">⏳ Next generation available in: {formatTimeRemaining(topicInfo.timeUntilNextGeneration)}</p>
+            <p className="mt-2 font-semibold text-lg">⏳ Next generation available in: <span className="text-red-600">{countdown.formatTime()}</span></p>
           )}
         </div>
       </div>
