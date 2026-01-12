@@ -3,6 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useDashboard, useLeaderboard } from '../hooks/useDashboardQueries';
 import { Leaderboard } from '../components/Leaderboard';
 import { AccuracyChart } from '../components/AccuracyChart';
+import { ProgressCharts } from '../components/ProgressCharts';
 import { Link } from 'react-router-dom';
 
 export const DashboardPage = () => {
@@ -114,6 +115,9 @@ export const DashboardPage = () => {
           )}
         </div>
       </div>
+
+      {/* Progress Charts */}
+      <ProgressCharts />
 
       {/* Leaderboard */}
       <div className="mb-8">
