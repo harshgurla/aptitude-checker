@@ -151,7 +151,6 @@ Example format for multiple questions:
     }
   }
 };
-};
 
 export const generateMotivationalMessage = async (score, totalQuestions, streak) => {
   try {
