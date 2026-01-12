@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useLocation } from 'react-router-dom';
+import { useParams, useLocation, Link } from 'react-router-dom';
 import { testService } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 
@@ -162,18 +162,18 @@ export const ResultsPage = () => {
 
       {/* Action Buttons */}
       <div className="mt-8 flex gap-4 justify-center">
-        <a
-          href="/dashboard"
+        <Link
+          to="/dashboard"
           className="px-6 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition"
         >
           Back to Dashboard
-        </a>
-        <a
-          href="/test"
+        </Link>
+        <Link
+          to="/test"
           className="px-6 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition"
         >
           Take Another Test
-        </a>
+        </Link>
       </div>
     </div>
   );
