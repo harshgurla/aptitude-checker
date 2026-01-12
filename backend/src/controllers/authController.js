@@ -3,6 +3,7 @@ import { generateToken } from '../utils/jwt.js';
 import { hashPassword, comparePassword } from '../utils/crypto.js';
 import { isValidEmail } from '../utils/helpers.js';
 import Leaderboard from '../models/Leaderboard.js';
+import { updateLeaderboardRanks } from '../services/leaderboardService.js';
 
 export const registerUser = async (req, res) => {
   try {
@@ -55,8 +56,11 @@ export const registerUser = async (req, res) => {
       accuracy: 0,
       consistencyScore: 0,
       totalTestsTaken: 0,
-      rank: 99999, // Start at the bottom
+      rank: 99999, // Temporary - will be recalculated
     });
+
+    // Recalculate ranks for all users (new user will get proper rank at bottom)
+    await updateLeaderboardRanks();
 
     // Generate token
     const token = generateToken(user._id.toString(), user.role);
