@@ -1,8 +1,13 @@
-# Build settings for Render.com
-# Static site configuration for Single Page Application
+# Render Static Site Configuration for SPA
+# This file handles client-side routing
 
-# Make sure all routes serve index.html for client-side routing
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+services:
+  - type: web
+    name: aptitude-frontend
+    env: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
