@@ -129,6 +129,18 @@ export const submitTest = async (req, res) => {
       return res.status(400).json({ error: 'Test already submitted' });
     }
 
+    // Validate all questions are answered
+    const totalQuestions = test.questions.length;
+    const answeredQuestions = answers.filter(a => a.answer !== undefined && a.answer !== '').length;
+    
+    if (answeredQuestions < totalQuestions) {
+      return res.status(400).json({ 
+        error: `You must answer all ${totalQuestions} questions before submitting. Currently answered: ${answeredQuestions}`,
+        answered: answeredQuestions,
+        total: totalQuestions
+      });
+    }
+
     // Validate time
     const now = new Date();
     if (now > test.scheduledEndTime) {

@@ -61,6 +61,15 @@ export const TestPage = () => {
   };
 
   const handleSubmitTest = async () => {
+    // Check if all questions are answered
+    const totalQuestions = test.questions.length;
+    const answeredQuestions = Object.keys(answers).filter(key => answers[key] !== '').length;
+    
+    if (answeredQuestions < totalQuestions) {
+      alert(`Please answer all questions before submitting!\n\nAnswered: ${answeredQuestions}/${totalQuestions}`);
+      return;
+    }
+
     if (!window.confirm('Are you sure you want to submit? You cannot make changes after this.')) {
       return;
     }
@@ -245,8 +254,9 @@ export const TestPage = () => {
                 {currentQuestion === test.totalQuestions - 1 ? (
                   <button
                     onClick={handleSubmitTest}
-                    disabled={loading}
-                    className="px-8 py-2 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50"
+                    disabled={loading || Object.keys(answers).filter(key => answers[key] !== '').length < test.totalQuestions}
+                    className="px-8 py-2 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={Object.keys(answers).filter(key => answers[key] !== '').length < test.totalQuestions ? `Answer all questions to submit (${Object.keys(answers).filter(key => answers[key] !== '').length}/${test.totalQuestions})` : 'Submit Test'}
                   >
                     {loading ? 'Submitting...' : 'Submit Test'}
                   </button>
