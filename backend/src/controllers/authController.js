@@ -44,10 +44,18 @@ export const registerUser = async (req, res) => {
 
     await user.save();
 
-    // Create leaderboard entry
+    // Create leaderboard entry with proper initial values
     await Leaderboard.create({
       student: user._id,
       studentName: user.name,
+      currentStreak: 0,
+      bestStreak: 0,
+      totalCorrectAnswers: 0,
+      totalAttempts: 0,
+      accuracy: 0,
+      consistencyScore: 0,
+      totalTestsTaken: 0,
+      rank: 99999, // Start at the bottom
     });
 
     // Generate token

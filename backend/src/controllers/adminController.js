@@ -161,7 +161,8 @@ export const getAdminDashboard = async (req, res) => {
 
     const activeTopic = await Topic.findOne({ isActive: true });
 
-    const topPerformers = await Leaderboard.find()
+    // Get top performers - only users who have taken at least 1 test
+    const topPerformers = await Leaderboard.find({ totalTestsTaken: { $gt: 0 } })
       .sort({ rank: 1 })
       .limit(5)
       .select('studentName currentStreak totalCorrectAnswers accuracy rank');

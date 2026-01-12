@@ -66,13 +66,16 @@ export const updateUserStats = async (userId) => {
 
 export const updateLeaderboardRanks = async () => {
   try {
-    // Sort by: streak desc, totalCorrect desc, accuracy desc, consistency desc
+    // Sort by: totalTestsTaken (must have at least 1), then streak desc, totalCorrect desc, accuracy desc, consistency desc
+    // This ensures new users without any tests stay at the bottom
     const sorted = await Leaderboard.find()
       .sort({
-        currentStreak: -1,
-        totalCorrectAnswers: -1,
-        accuracy: -1,
-        consistencyScore: -1,
+        totalTestsTaken: -1, // Users with tests come first
+        currentStreak: -1,   // Then by streak
+        totalCorrectAnswers: -1, // Then by correct answers
+        accuracy: -1,        // Then by accuracy
+        consistencyScore: -1, // Finally by consistency
+        _id: 1,              // Consistent ordering for ties
       })
       .exec();
 
