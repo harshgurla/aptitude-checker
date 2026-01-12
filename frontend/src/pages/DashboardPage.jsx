@@ -112,9 +112,6 @@ export const DashboardPage = () => {
           ) : (
             <p className="text-gray-600 dark:text-gray-400 text-center py-8">No tests taken yet</p>
           )}
-          <Link to="/test-history" className="block text-center text-blue-600 dark:text-blue-400 font-medium mt-4 hover:underline">
-            View All Tests
-          </Link>
         </div>
       </div>
 
