@@ -46,6 +46,7 @@ export const Leaderboard = () => {
               <th className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Name</th>
               <th className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Streak</th>
               <th className="hidden sm:table-cell px-4 md:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Correct</th>
+              <th className="hidden md:table-cell px-4 md:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Points</th>
               <th className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Accuracy</th>
             </tr>
           </thead>
@@ -62,6 +63,7 @@ export const Leaderboard = () => {
                   </span>
                 </td>
                 <td className="hidden sm:table-cell px-4 md:px-6 py-3 sm:py-4 text-gray-700 dark:text-gray-300">{item.totalCorrectAnswers}</td>
+                <td className="hidden md:table-cell px-4 md:px-6 py-3 sm:py-4 text-gray-700 dark:text-gray-300 font-semibold">{item.totalPoints || 0}</td>
                 <td className="px-3 sm:px-4 md:px-6 py-3 sm:py-4">
                   <div className="flex items-center">
                     <div className="w-12 sm:w-20 md:w-24 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 sm:h-2 mr-1 sm:mr-2">
