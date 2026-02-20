@@ -135,47 +135,78 @@ export const generateTodayQuestions = async () => {
         const questionsToGenerate = count - existingCount;
 
         if (questionsToGenerate > 0) {
-          try {
-            console.log(`📝 [generateTodayQuestions] Generating ${questionsToGenerate} ${difficulty} questions...`);
-            const generatedQuestions = await generateQuestionsAI(topic.name, difficulty, questionsToGenerate);
+          let savedCount = 0;
+          let attempts = 0;
+          const maxAttempts = 5; // Try up to 5 times to get the right number of questions
 
-            if (!Array.isArray(generatedQuestions)) {
-              console.error(`❌ [generateTodayQuestions] Invalid response from AI: not an array`);
-              continue;
-            }
+          // Keep trying until we have exactly the right number of questions for this difficulty
+          while (savedCount < questionsToGenerate && attempts < maxAttempts) {
+            attempts++;
+            const remainingNeeded = questionsToGenerate - savedCount;
+            
+            try {
+              console.log(`📝 [generateTodayQuestions] Attempt ${attempts}: Generating ${remainingNeeded} ${difficulty} questions...`);
+              // Request extra questions to account for potential duplicates/failures (1.5x)
+              const requestCount = Math.ceil(remainingNeeded * 1.5);
+              const generatedQuestions = await generateQuestionsAI(topic.name, difficulty, requestCount);
 
-            for (const q of generatedQuestions) {
-              try {
-                if (!q.question || !q.options || !q.correctAnswer) {
-                  console.warn(`⚠️ [generateTodayQuestions] Skipping invalid question: missing required fields`);
-                  continue;
+              if (!Array.isArray(generatedQuestions)) {
+                console.error(`❌ [generateTodayQuestions] Invalid response from AI: not an array`);
+                continue;
+              }
+
+              console.log(`✓ [generateTodayQuestions] AI returned ${generatedQuestions.length} questions`);
+
+              for (const q of generatedQuestions) {
+                // Stop if we've saved enough questions for this difficulty
+                if (savedCount >= questionsToGenerate) {
+                  break;
                 }
 
-                const signature = crypto.createHash('sha256').update(`${q.question}${topic.name}${difficulty}`).digest('hex');
+                try {
+                  if (!q.question || !q.options || !q.correctAnswer) {
+                    console.warn(`⚠️ [generateTodayQuestions] Skipping invalid question: missing required fields`);
+                    continue;
+                  }
 
-                await Question.create({
-                  topic: topic._id,
-                  category: q.category || 'Quantitative Aptitude',
-                  difficulty,
-                  question: q.question,
-                  options: q.options,
-                  correctAnswer: q.correctAnswer,
-                  correctAnswerExplanation: q.explanation || '',
-                  questionSignature: signature,
-                  createdByAI: true,
-                  aiPromptUsed: topic.name,
-                });
-                totalGenerated++;
-              } catch (error) {
-                console.error(`⚠️ [generateTodayQuestions] Failed to save question:`, error.message);
-                // Continue with next question
+                  const signature = crypto.createHash('sha256').update(`${q.question}${topic.name}${difficulty}`).digest('hex');
+
+                  await Question.create({
+                    topic: topic._id,
+                    category: q.category || 'Quantitative Aptitude',
+                    difficulty,
+                    question: q.question,
+                    options: q.options,
+                    correctAnswer: q.correctAnswer,
+                    correctAnswerExplanation: q.explanation || '',
+                    questionSignature: signature,
+                    createdByAI: true,
+                    aiPromptUsed: topic.name,
+                  });
+                  savedCount++;
+                  totalGenerated++;
+                  console.log(`✓ [generateTodayQuestions] Saved ${difficulty} question ${savedCount}/${questionsToGenerate}`);
+                } catch (error) {
+                  if (error.code === 11000) {
+                    console.warn(`⚠️ [generateTodayQuestions] Duplicate question detected, skipping...`);
+                  } else {
+                    console.error(`⚠️ [generateTodayQuestions] Failed to save question:`, error.message);
+                  }
+                  // Continue with next question
+                }
               }
+              
+              console.log(`✓ [generateTodayQuestions] Progress: ${savedCount}/${questionsToGenerate} ${difficulty} questions saved (Attempt ${attempts})`);
+            } catch (error) {
+              console.error(`❌ [generateTodayQuestions] Attempt ${attempts} failed to generate ${difficulty} questions:`, error.message);
+              // Continue to next attempt
             }
-            
-            console.log(`✓ [generateTodayQuestions] Generated ${questionsToGenerate} ${difficulty} questions`);
-          } catch (error) {
-            console.error(`❌ [generateTodayQuestions] Failed to generate ${difficulty} questions:`, error.message);
-            // Continue with other difficulty levels even if one fails
+          }
+
+          if (savedCount < questionsToGenerate) {
+            console.error(`⚠️ [generateTodayQuestions] Only saved ${savedCount}/${questionsToGenerate} ${difficulty} questions after ${maxAttempts} attempts`);
+          } else {
+            console.log(`✅ [generateTodayQuestions] Successfully saved all ${questionsToGenerate} ${difficulty} questions!`);
           }
         }
       } catch (error) {
@@ -189,16 +220,31 @@ export const generateTodayQuestions = async () => {
       throw new Error('Failed to generate any questions');
     }
 
+    // Verify we have exactly QUESTIONS_PER_TEST questions
+    const finalCount = await Question.find({
+      topic: topic._id,
+      createdAt: {
+        $gte: today,
+        $lt: tomorrow,
+      },
+    }).countDocuments();
+
+    if (finalCount < QUESTIONS_PER_TEST) {
+      console.warn(`⚠️ [generateTodayQuestions] Only generated ${finalCount}/${QUESTIONS_PER_TEST} questions. May need manual intervention.`);
+    } else {
+      console.log(`✅ [generateTodayQuestions] Verified: ${finalCount} questions in database`);
+    }
+
     try {
-      topic.questionsGenerated = totalGenerated;
+      topic.questionsGenerated = finalCount;
       await topic.save();
     } catch (error) {
       console.error('⚠️ [generateTodayQuestions] Failed to save topic:', error.message);
       // Continue anyway - we generated questions even if we can't update the topic
     }
 
-    console.log(`✅ [generateTodayQuestions] Successfully generated ${totalGenerated} questions for ${topic.name}`);
-    return { success: true, message: `Generated ${totalGenerated} questions for ${topic.name}`, questionsGenerated: totalGenerated };
+    console.log(`✅ [generateTodayQuestions] Successfully generated ${totalGenerated} questions for ${topic.name} (Total in DB: ${finalCount})`);
+    return { success: true, message: `Generated ${finalCount} questions for ${topic.name}`, questionsGenerated: finalCount };
   } catch (error) {
     console.error('❌ [generateTodayQuestions] Error generating questions:', error.message, error.stack);
     return { success: false, message: `Error: ${error.message}`, questionsGenerated: 0 };

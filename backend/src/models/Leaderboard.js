@@ -24,6 +24,10 @@ const leaderboardSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    totalPoints: {
+      type: Number,
+      default: 0,
+    },
     totalAttempts: {
       type: Number,
       default: 0,
@@ -52,7 +56,7 @@ const leaderboardSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-leaderboardSchema.index({ currentStreak: -1, totalCorrectAnswers: -1, accuracy: -1, consistencyScore: -1 });
+leaderboardSchema.index({ totalPoints: -1, currentStreak: -1, accuracy: -1, totalCorrectAnswers: -1, consistencyScore: -1 });
 leaderboardSchema.index({ rank: 1 });
 leaderboardSchema.index({ student: 1 });
 

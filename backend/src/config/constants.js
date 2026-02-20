@@ -55,6 +55,12 @@ export const DIFFICULTY_SPLIT = {
   [DIFFICULTY.HARD]: 5,
 };
 
+export const DIFFICULTY_POINTS = {
+  [DIFFICULTY.EASY]: 1,
+  [DIFFICULTY.MEDIUM]: 2,
+  [DIFFICULTY.HARD]: 3,
+};
+
 export const TEST_DURATION = 60 * 60 * 1000; // 60 minutes in milliseconds
 export const QUESTIONS_PER_TEST = 20;
 

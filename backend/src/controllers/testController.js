@@ -2,7 +2,7 @@ import Test from '../models/Test.js';
 import Question from '../models/Question.js';
 import Topic from '../models/Topic.js';
 import User from '../models/User.js';
-import { DIFFICULTY_SPLIT, QUESTIONS_PER_TEST, TEST_DURATION } from '../config/constants.js';
+import { DIFFICULTY_POINTS, DIFFICULTY_SPLIT, QUESTIONS_PER_TEST, TEST_DURATION } from '../config/constants.js';
 import { generateMotivationalMessage } from '../services/aiService.js';
 import { updateUserStats, updateStreak } from '../services/leaderboardService.js';
 
@@ -155,10 +155,15 @@ export const submitTest = async (req, res) => {
     // Evaluate answers
     let totalCorrect = 0;
     let totalAttempted = 0;
+    let totalPoints = 0;
+    let maxPoints = 0;
 
     const submittedAnswers = [];
 
     for (const question of test.questions) {
+      const questionPoints = DIFFICULTY_POINTS[question.difficulty] || 1;
+      maxPoints += questionPoints;
+
       const answer = answers.find((a) => a.questionId === question._id.toString());
 
       if (answer && answer.answer !== undefined && answer.answer !== '') {
@@ -166,6 +171,7 @@ export const submitTest = async (req, res) => {
         const isCorrect = String(answer.answer).trim().toLowerCase() === String(question.correctAnswer).trim().toLowerCase();
         if (isCorrect) {
           totalCorrect++;
+          totalPoints += questionPoints;
         }
 
         submittedAnswers.push({
@@ -181,6 +187,8 @@ export const submitTest = async (req, res) => {
     test.totalCorrect = totalCorrect;
     test.totalAttempted = totalAttempted;
     test.score = totalCorrect;
+    test.totalPoints = totalPoints;
+    test.maxPoints = maxPoints;
     test.accuracy = totalAttempted > 0 ? ((totalCorrect / totalAttempted) * 100).toFixed(2) : 0;
 
     // Generate motivational message
@@ -197,6 +205,8 @@ export const submitTest = async (req, res) => {
       message: 'Test submitted successfully',
       testId: test._id,
       score: test.score,
+      totalPoints: test.totalPoints,
+      maxPoints: test.maxPoints,
       totalCorrect,
       totalAttempted,
       accuracy: test.accuracy,
@@ -229,6 +239,8 @@ export const getTestResult = async (req, res) => {
       testId: test._id,
       topicName: test.topicName,
       score: test.score,
+      totalPoints: test.totalPoints || 0,
+      maxPoints: test.maxPoints || 0,
       totalCorrect: test.totalCorrect,
       totalAttempted: test.totalAttempted,
       accuracy: test.accuracy,

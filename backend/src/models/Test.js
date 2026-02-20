@@ -43,6 +43,14 @@ const testSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    totalPoints: {
+      type: Number,
+      default: 0,
+    },
+    maxPoints: {
+      type: Number,
+      default: 0,
+    },
     totalCorrect: {
       type: Number,
       default: 0,

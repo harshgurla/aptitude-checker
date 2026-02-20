@@ -17,12 +17,14 @@ export const updateUserStats = async (userId) => {
     // Calculate stats
     let totalCorrect = 0;
     let totalAttempted = 0;
+    let totalPoints = 0;
     const dailyScores = [];
 
     for (const test of tests) {
       dailyScores.push(test.totalCorrect || 0);
       totalCorrect += test.totalCorrect || 0;
       totalAttempted += test.totalAttempted || 0;
+      totalPoints += test.totalPoints || 0;
     }
 
     const accuracy = calculateAccuracy(totalCorrect, totalAttempted);
@@ -41,6 +43,7 @@ export const updateUserStats = async (userId) => {
         currentStreak: user.currentStreak,
         bestStreak: user.bestStreak,
         totalCorrectAnswers: totalCorrect,
+        totalPoints: totalPoints,
         totalAttempts: totalAttempted,
         accuracy: parseFloat(accuracy),
         consistencyScore: parseFloat(consistencyScore),
@@ -57,6 +60,7 @@ export const updateUserStats = async (userId) => {
       consistencyScore,
       totalCorrect,
       totalAttempted,
+      totalPoints,
     };
   } catch (error) {
     console.error('Error updating user stats:', error);
@@ -75,18 +79,21 @@ export const updateLeaderboardRanks = async () => {
     
     // Sort users WITH tests by performance (best to worst)
     usersWithTests.sort((a, b) => {
-      // Primary: currentStreak (higher is better)
+      // Primary: totalPoints (higher is better)
+      if ((b.totalPoints || 0) !== (a.totalPoints || 0)) return (b.totalPoints || 0) - (a.totalPoints || 0);
+
+      // Secondary: currentStreak (higher is better)
       if (b.currentStreak !== a.currentStreak) return b.currentStreak - a.currentStreak;
-      
-      // Secondary: totalCorrectAnswers (higher is better)
-      if (b.totalCorrectAnswers !== a.totalCorrectAnswers) return b.totalCorrectAnswers - a.totalCorrectAnswers;
-      
+
       // Tertiary: accuracy (higher is better)
       if (b.accuracy !== a.accuracy) return b.accuracy - a.accuracy;
-      
-      // Quaternary: consistencyScore (higher is better)
+
+      // Quaternary: totalCorrectAnswers (higher is better)
+      if (b.totalCorrectAnswers !== a.totalCorrectAnswers) return b.totalCorrectAnswers - a.totalCorrectAnswers;
+
+      // Quinary: consistencyScore (higher is better)
       if (b.consistencyScore !== a.consistencyScore) return b.consistencyScore - a.consistencyScore;
-      
+
       // Final: _id for consistent ordering
       return a._id.toString().localeCompare(b._id.toString());
     });
